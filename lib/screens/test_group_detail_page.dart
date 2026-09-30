@@ -13,7 +13,7 @@ class TestGroupDetailPage extends StatelessWidget {
   final String jobName;
   final String locationName;
 
-   static const double _trimThreshold = 0.25;
+  static const double _trimThreshold = 0.20;
 
   const TestGroupDetailPage({
     super.key,
@@ -169,27 +169,27 @@ class TestGroupDetailPage extends StatelessWidget {
   }
 
   // ============================================================
-  //  SEMI-SYMMETRIC CONE: [startIdx, endIdx] around peak
+  //  IMPACT WINDOW: [startIdx, endIdx] around the peak
   // ============================================================
-  List<int> _getImpactRange(Drop d) {
-    final n = d.settlementCurve.length;
-    if (n < 2) return [0, 0];
+  List<int> _getImpactRange(List<double> data) {
+    final n = data.length;
+    if (n < 2) return [0, n - 1];
 
-    double maxSettle = 0;
+    double peakVal = 0;
     int peakIdx = 0;
     for (int i = 0; i < n; i++) {
-      if (d.settlementCurve[i].abs() > maxSettle) {
-        maxSettle = d.settlementCurve[i].abs();
+      if (data[i].abs() > peakVal) {
+        peakVal = data[i].abs();
         peakIdx = i;
       }
     }
-    if (maxSettle == 0) return [0, n - 1];
+    if (peakVal == 0) return [0, n - 1];
 
-    final threshold = maxSettle * _trimThreshold;
+    final threshold = peakVal * _trimThreshold;
 
     int startIdx = peakIdx;
     for (int i = peakIdx; i >= 0; i--) {
-      if (d.settlementCurve[i].abs() < threshold) {
+      if (data[i].abs() < threshold) {
         startIdx = i;
         break;
       }
@@ -198,7 +198,7 @@ class TestGroupDetailPage extends StatelessWidget {
 
     int endIdx = peakIdx;
     for (int i = peakIdx; i < n; i++) {
-      if (d.settlementCurve[i].abs() < threshold) {
+      if (data[i].abs() < threshold) {
         endIdx = i;
         break;
       }
@@ -209,19 +209,17 @@ class TestGroupDetailPage extends StatelessWidget {
       startIdx = 0;
       endIdx = n - 1;
     }
-
     return [startIdx, endIdx];
   }
 
-  List<FlSpot> _buildHmpSpots(Drop d) {
+  // Settlement spots (trimmed)
+  List<FlSpot> _buildSettlementSpots(Drop d) {
     if (d.settlementCurve.isEmpty) return [];
-    final n = d.settlementCurve.length;
-    if (n < 2) return [];
-
-    final range = _getImpactRange(d);
+    final range = _getImpactRange(d.settlementCurve);
     final startIdx = range[0];
     final endIdx = range[1];
 
+    final n = d.settlementCurve.length;
     final times = d.impactTimeCurve.isNotEmpty
         ? d.impactTimeCurve
         : List<double>.generate(n, (i) => i * 25.0);
@@ -237,7 +235,26 @@ class TestGroupDetailPage extends StatelessWidget {
 
     final tEnd = endIdx < times.length ? times[endIdx] : endIdx * 25.0;
     spots.add(FlSpot(tEnd, 0));
+    return spots;
+  }
 
+  // Velocity spots (trimmed using SAME window as settlement, so both line up)
+  List<FlSpot> _buildVelocitySpots(Drop d) {
+    if (d.velocityCurve.isEmpty) return [];
+    final range = _getImpactRange(d.settlementCurve);
+    final startIdx = range[0];
+    final endIdx = range[1];
+
+    final n = d.velocityCurve.length;
+    final times = d.impactTimeCurve.isNotEmpty
+        ? d.impactTimeCurve
+        : List<double>.generate(n, (i) => i * 25.0);
+
+    final spots = <FlSpot>[];
+    for (int i = startIdx; i <= endIdx && i < n; i++) {
+      final x = i < times.length ? times[i] : i * 25.0;
+      spots.add(FlSpot(x, d.velocityCurve[i]));
+    }
     return spots;
   }
 
@@ -248,19 +265,20 @@ class TestGroupDetailPage extends StatelessWidget {
     bool hasData = false;
 
     for (final d in group.drops) {
-      if (d.settlementCurve.isNotEmpty) hasData = true;
+      if (d.settlementCurve.isEmpty) continue;
+      hasData = true;
 
-      double localMaxSettle = 0;
+      double localMax = 0;
       for (final v in d.settlementCurve) {
-        if (v.abs() > localMaxSettle) localMaxSettle = v.abs();
+        if (v.abs() > localMax) localMax = v.abs();
       }
-      if (localMaxSettle > maxSettle) maxSettle = localMaxSettle;
+      if (localMax > maxSettle) maxSettle = localMax;
 
-      final range = _getImpactRange(d);
+      final range = _getImpactRange(d.settlementCurve);
+      final n = d.settlementCurve.length;
       final times = d.impactTimeCurve.isNotEmpty
           ? d.impactTimeCurve
-          : List<double>.generate(
-              d.settlementCurve.length, (i) => i * 25.0);
+          : List<double>.generate(n, (i) => i * 25.0);
       final tStart = range[0] < times.length ? times[range[0]] : 0.0;
       final tEnd = range[1] < times.length ? times[range[1]] : 0.0;
       if (tStart < minX) minX = tStart;
@@ -354,7 +372,7 @@ class TestGroupDetailPage extends StatelessWidget {
                       maxY: chartMaxY,
                       lineBarsData: group.drops.asMap().entries.map((e) {
                         return LineChartBarData(
-                          spots: _buildHmpSpots(e.value),
+                          spots: _buildSettlementSpots(e.value),
                           isCurved: true,
                           curveSmoothness: 0.3,
                           color: _colorForIndex(e.key),
@@ -406,15 +424,17 @@ class TestGroupDetailPage extends StatelessWidget {
     bool hasData = false;
 
     for (final d in group.drops) {
-      if (d.velocityCurve.isNotEmpty) hasData = true;
+      if (d.velocityCurve.isEmpty) continue;
+      hasData = true;
       for (final v in d.velocityCurve) {
         if (v.abs() > maxVel) maxVel = v.abs();
       }
-      final range = _getImpactRange(d);
+      // Use settlement window for X-range
+      final range = _getImpactRange(d.settlementCurve);
+      final n = d.velocityCurve.length;
       final times = d.impactTimeCurve.isNotEmpty
           ? d.impactTimeCurve
-          : List<double>.generate(
-              d.settlementCurve.length, (i) => i * 25.0);
+          : List<double>.generate(n, (i) => i * 25.0);
       final tStart = range[0] < times.length ? times[range[0]] : 0.0;
       final tEnd = range[1] < times.length ? times[range[1]] : 0.0;
       if (tStart < minX) minX = tStart;
@@ -508,25 +528,8 @@ class TestGroupDetailPage extends StatelessWidget {
                           .entries
                           .where((e) => e.value.velocityCurve.isNotEmpty)
                           .map((e) {
-                        final d = e.value;
-                        final range = _getImpactRange(d);
-                        final startIdx = range[0];
-                        final endIdx = range[1];
-                        final times = d.impactTimeCurve.isNotEmpty
-                            ? d.impactTimeCurve
-                            : List<double>.generate(
-                                d.settlementCurve.length, (i) => i * 25.0);
-
-                        final spots = <FlSpot>[];
-                        for (int i = startIdx;
-                            i <= endIdx && i < d.velocityCurve.length;
-                            i++) {
-                          final x = i < times.length ? times[i] : i * 25.0;
-                          spots.add(FlSpot(x, d.velocityCurve[i]));
-                        }
-
                         return LineChartBarData(
-                          spots: spots,
+                          spots: _buildVelocitySpots(e.value),
                           isCurved: true,
                           curveSmoothness: 0.25,
                           color: _colorForIndex(e.key),

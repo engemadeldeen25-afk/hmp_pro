@@ -58,8 +58,8 @@ class _MeasurementPageState extends State<MeasurementPage> {
   static const int _preloadCount = 3;
   static const int _testCount = 3;
 
-  // Threshold: 15% of peak → clips curve to impact period only (semi-symmetric cone)
-   static const double _trimThreshold = 0.25;
+  // Threshold: 20% of peak — keeps only the impact window
+  static const double _trimThreshold = 0.20;
 
   late Location _location;
 
@@ -85,8 +85,6 @@ class _MeasurementPageState extends State<MeasurementPage> {
     super.initState();
     _location = widget.location;
     _dataSub = widget.ble.dataStream.listen(_onData);
-
-    // === KEEP SCREEN AWAKE during the entire measurement session ===
     _enableWakelock();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -98,25 +96,18 @@ class _MeasurementPageState extends State<MeasurementPage> {
   Future<void> _enableWakelock() async {
     try {
       await WakelockPlus.enable();
-      print('Wakelock enabled - screen will stay on');
-    } catch (e) {
-      print('Wakelock enable failed: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> _disableWakelock() async {
     try {
       await WakelockPlus.disable();
-      print('Wakelock disabled - screen can sleep normally');
-    } catch (e) {
-      print('Wakelock disable failed: $e');
-    }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _dataSub?.cancel();
-    // === RELEASE WAKELOCK when leaving the measurement page ===
     _disableWakelock();
     super.dispose();
   }
@@ -548,81 +539,75 @@ class _MeasurementPageState extends State<MeasurementPage> {
   }
 
   // ============================================================
-  //  SEMI-SYMMETRIC CONE: Find [startIdx, endIdx] around peak
-  //  Uses 15% threshold on BOTH sides of the peak for symmetric shape
+  //  IMPACT WINDOW: find [startIdx, endIdx] around peak where
+  //  |value| >= threshold * peakValue
   // ============================================================
-  List<int> _getImpactRange(Drop d) {
-    final n = d.settlementCurve.length;
-    if (n < 2) return [0, 0];
+  List<int> _getImpactRange(List<double> data) {
+    final n = data.length;
+    if (n < 2) return [0, n - 1];
 
-    // 1) Find peak
-    double maxSettle = 0;
+    // 1) Find the peak
+    double peakVal = 0;
     int peakIdx = 0;
     for (int i = 0; i < n; i++) {
-      if (d.settlementCurve[i].abs() > maxSettle) {
-        maxSettle = d.settlementCurve[i].abs();
+      if (data[i].abs() > peakVal) {
+        peakVal = data[i].abs();
         peakIdx = i;
       }
     }
-    if (maxSettle == 0) return [0, n - 1];
+    if (peakVal == 0) return [0, n - 1];
 
-    final threshold = maxSettle * _trimThreshold;
+    final threshold = peakVal * _trimThreshold;
 
-    // 2) Move LEFT from peak until settlement < threshold
+    // 2) Walk LEFT from peak
     int startIdx = peakIdx;
     for (int i = peakIdx; i >= 0; i--) {
-      if (d.settlementCurve[i].abs() < threshold) {
+      if (data[i].abs() < threshold) {
         startIdx = i;
         break;
       }
       if (i == 0) startIdx = 0;
     }
 
-    // 3) Move RIGHT from peak until settlement < threshold
+    // 3) Walk RIGHT from peak
     int endIdx = peakIdx;
     for (int i = peakIdx; i < n; i++) {
-      if (d.settlementCurve[i].abs() < threshold) {
+      if (data[i].abs() < threshold) {
         endIdx = i;
         break;
       }
       if (i == n - 1) endIdx = n - 1;
     }
 
-    // 4) Safety: ensure minimum width
+    // Safety
     if (endIdx <= startIdx) {
       startIdx = 0;
       endIdx = n - 1;
     }
-
     return [startIdx, endIdx];
   }
 
-  List<FlSpot> _buildHmpSpots(Drop d) {
+  // Settlement spots (trimmed to impact window)
+  List<FlSpot> _buildSettlementSpots(Drop d) {
     if (d.settlementCurve.isEmpty) return [];
-    final n = d.settlementCurve.length;
-    if (n < 2) return [];
-
-    final range = _getImpactRange(d);
+    final range = _getImpactRange(d.settlementCurve);
     final startIdx = range[0];
     final endIdx = range[1];
 
+    final n = d.settlementCurve.length;
     final times = d.impactTimeCurve.isNotEmpty
         ? d.impactTimeCurve
         : List<double>.generate(n, (i) => i * 25.0);
 
     final spots = <FlSpot>[];
-
-    // Start at origin
     final tStart = startIdx < times.length ? times[startIdx] : 0.0;
     spots.add(FlSpot(tStart, 0));
 
-    // Emit impact-period points only
     for (int i = startIdx; i <= endIdx; i++) {
       final x = i < times.length ? times[i] : i * 25.0;
       spots.add(FlSpot(x, -d.settlementCurve[i].abs()));
     }
 
-    // End at origin
     final tEnd = endIdx < times.length ? times[endIdx] : endIdx * 25.0;
     spots.add(FlSpot(tEnd, 0));
 
@@ -641,24 +626,26 @@ class _MeasurementPageState extends State<MeasurementPage> {
       );
     }
 
+    // Compute ranges across all drops
     double maxSettle = 0;
     double minX = double.infinity;
     double maxX = 0;
 
     for (final d in _testDrops) {
-      // Peak settlement
-      double localMaxSettle = 0;
+      // Peak
+      double localMax = 0;
       for (final v in d.settlementCurve) {
-        if (v.abs() > localMaxSettle) localMaxSettle = v.abs();
+        if (v.abs() > localMax) localMax = v.abs();
       }
-      if (localMaxSettle > maxSettle) maxSettle = localMaxSettle;
+      if (localMax > maxSettle) maxSettle = localMax;
 
-      // X-range from impact period only
-      final range = _getImpactRange(d);
+      // X-range from trimmed window
+      if (d.settlementCurve.isEmpty) continue;
+      final range = _getImpactRange(d.settlementCurve);
+      final n = d.settlementCurve.length;
       final times = d.impactTimeCurve.isNotEmpty
           ? d.impactTimeCurve
-          : List<double>.generate(
-              d.settlementCurve.length, (i) => i * 25.0);
+          : List<double>.generate(n, (i) => i * 25.0);
       final tStart = range[0] < times.length ? times[range[0]] : 0.0;
       final tEnd = range[1] < times.length ? times[range[1]] : 0.0;
       if (tStart < minX) minX = tStart;
@@ -699,7 +686,8 @@ class _MeasurementPageState extends State<MeasurementPage> {
               interval: ((maxX - minX) / 4).clamp(0.5, 1000).toDouble(),
               getTitlesWidget: (v, _) => Text(
                 v.toStringAsFixed(0),
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 8),
+                style:
+                    TextStyle(color: Colors.grey.shade600, fontSize: 8),
               ),
             ),
           ),
@@ -710,7 +698,8 @@ class _MeasurementPageState extends State<MeasurementPage> {
               interval: maxSettle / 3,
               getTitlesWidget: (v, _) => Text(
                 v.abs().toStringAsFixed(2),
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 8),
+                style:
+                    TextStyle(color: Colors.grey.shade600, fontSize: 8),
               ),
             ),
           ),
@@ -724,7 +713,7 @@ class _MeasurementPageState extends State<MeasurementPage> {
           final d = e.value;
           final idx = e.key;
           return LineChartBarData(
-            spots: _buildHmpSpots(d),
+            spots: _buildSettlementSpots(d),
             isCurved: true,
             curveSmoothness: 0.3,
             color: _colorForIndex(idx),
