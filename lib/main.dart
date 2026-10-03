@@ -35,18 +35,52 @@ class HmpProApp extends StatelessWidget {
     return MaterialApp(
       title: 'HMP PRO',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
+           theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF00E5FF),
-          secondary: Color(0xFF1E88E5),
-          surface: Color(0xFF151B2E),
+          primary: Color(0xFF00FFFF),
+          secondary: Color(0xFF42A5F5),
+          surface: Color(0xFF0D1B2A),
+          onPrimary: Color(0xFF000000),
+          onSurface: Color(0xFFFFFFFF),
         ),
-        scaffoldBackgroundColor: const Color(0xFF0A0E1A),
+        scaffoldBackgroundColor: const Color(0xFF000000),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0A0E1A),
+          backgroundColor: Color(0xFF000000),
           elevation: 0,
+          titleTextStyle: TextStyle(
+            color: Color(0xFFFFFFFF),
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
+          ),
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(
+            color: Color(0xFFFFFFFF),
+            fontWeight: FontWeight.w600,
+          ),
+          bodyMedium: TextStyle(
+            color: Color(0xFFE0E0E0),
+            fontWeight: FontWeight.w500,
+          ),
+          titleLarge: TextStyle(
+            color: Color(0xFFFFFFFF),
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        iconTheme: const IconThemeData(
+          color: Color(0xFFFFFFFF),
+          size: 28,
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFF0D1B2A),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFF20344B), width: 1.5),
+          ),
         ),
       ),
       home: const SplashScreen(child: HomePage()),
@@ -105,8 +139,8 @@ class _SplashScreenState extends State<SplashScreen> {
                   ),
                 ],
               ),
-              child: Image.asset(
-                'assets/icon/logo.png',
+                   child: Image.asset(
+                'assets/icon/logo_v3.png',
                 width: 140,
                 height: 140,
                 errorBuilder: (_, __, ___) => const Icon(

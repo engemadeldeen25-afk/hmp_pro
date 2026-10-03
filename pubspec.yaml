@@ -1,7 +1,8 @@
 name: hmp_pro
 description: HMP PRO - Industrial Light Weight Deflectometer
 publish_to: 'none'
-version: 3.4.0+27
+version: 3.5.0+30
+
 environment:
   sdk: ">=3.0.0 <4.0.0"
 
@@ -32,10 +33,12 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/
 
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/icon/logo.png"
+  image_path: "assets/icon/logo_v3.png"
   adaptive_icon_background: "#0A0E1A"
-  adaptive_icon_foreground: "assets/icon/logo.png"
+  adaptive_icon_foreground: "assets/icon/logo_v3.png"

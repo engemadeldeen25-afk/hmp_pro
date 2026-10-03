@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
@@ -14,6 +17,8 @@ class TestGroupDetailPage extends StatelessWidget {
   final String locationName;
 
   static const double _trimThreshold = 0.20;
+  static final GlobalKey _settlementChartKey = GlobalKey();
+  static final GlobalKey _velocityChartKey = GlobalKey();
 
   const TestGroupDetailPage({
     super.key,
@@ -33,6 +38,21 @@ class TestGroupDetailPage extends StatelessWidget {
     return colors[i % colors.length];
   }
 
+  // Capture a RepaintBoundary widget to PNG bytes
+  static Future<Uint8List?> _captureImage(GlobalKey key) async {
+    try {
+      final boundary =
+          key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      print('Capture failed: $e');
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -44,15 +64,27 @@ class TestGroupDetailPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
             onPressed: () async {
-              final file = await ExportService.buildGroupPdf(
-                group,
-                siteName: siteName,
-                jobName: jobName,
-                locationName: locationName,
-                profile: profile,
-              );
-              await Share.shareXFiles([XFile(file.path)],
-                  subject: 'HMP PRO - Group Report');
+              try {
+                // Wait for charts to render fully
+                await Future.delayed(const Duration(milliseconds: 100));
+
+                final settleImg = await _captureImage(_settlementChartKey);
+                final velocityImg = await _captureImage(_velocityChartKey);
+
+                final file = await ExportService.buildGroupPdfWithImages(
+                  group,
+                  siteName: siteName,
+                  jobName: jobName,
+                  locationName: locationName,
+                  profile: profile,
+                  settlementChartImage: settleImg,
+                  velocityChartImage: velocityImg,
+                );
+                await Share.shareXFiles([XFile(file.path)],
+                    subject: 'HMP PRO - Group Report');
+              } catch (e) {
+                print('PDF export error: $e');
+              }
             },
           ),
           IconButton(
@@ -168,9 +200,6 @@ class TestGroupDetailPage extends StatelessWidget {
     );
   }
 
-  // ============================================================
-  //  IMPACT WINDOW: [startIdx, endIdx] around the peak
-  // ============================================================
   List<int> _getImpactRange(List<double> data) {
     final n = data.length;
     if (n < 2) return [0, n - 1];
@@ -212,7 +241,6 @@ class TestGroupDetailPage extends StatelessWidget {
     return [startIdx, endIdx];
   }
 
-  // Settlement spots (trimmed)
   List<FlSpot> _buildSettlementSpots(Drop d) {
     if (d.settlementCurve.isEmpty) return [];
     final range = _getImpactRange(d.settlementCurve);
@@ -238,7 +266,6 @@ class TestGroupDetailPage extends StatelessWidget {
     return spots;
   }
 
-  // Velocity spots (trimmed using SAME window as settlement, so both line up)
   List<FlSpot> _buildVelocitySpots(Drop d) {
     if (d.velocityCurve.isEmpty) return [];
     final range = _getImpactRange(d.settlementCurve);
@@ -310,82 +337,90 @@ class TestGroupDetailPage extends StatelessWidget {
                   letterSpacing: 1.5,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
-          SizedBox(
-            height: 260,
-            child: !hasData
-                ? Center(
-                    child: Text('No curve data',
-                        style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 12)))
-                : LineChart(
-                    LineChartData(
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: maxSettle / 3,
-                        getDrawingHorizontalLine: (value) => FlLine(
-                          color: value == 0
-                              ? Colors.white.withOpacity(0.6)
-                              : Colors.grey.shade900,
-                          strokeWidth: value == 0 ? 1.5 : 1,
-                          dashArray: value == 0 ? [4, 4] : null,
-                        ),
-                      ),
-                      titlesData: FlTitlesData(
-                        show: true,
-                        topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 24,
-                            interval:
-                                ((maxX - minX) / 4).clamp(0.5, 1000).toDouble(),
-                            getTitlesWidget: (v, _) => Text(
-                              v.toStringAsFixed(0),
-                              style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 9),
-                            ),
-                          ),
-                        ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 44,
-                            interval: maxSettle / 3,
-                            getTitlesWidget: (v, _) => Text(
-                              v.abs().toStringAsFixed(2),
-                              style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 9),
-                            ),
-                          ),
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      minX: minX,
-                      maxX: maxX,
-                      minY: chartMinY,
-                      maxY: chartMaxY,
-                      lineBarsData: group.drops.asMap().entries.map((e) {
-                        return LineChartBarData(
-                          spots: _buildSettlementSpots(e.value),
-                          isCurved: true,
-                          curveSmoothness: 0.3,
-                          color: _colorForIndex(e.key),
-                          barWidth: 2.5,
-                          dotData: const FlDotData(show: false),
-                          belowBarData: BarAreaData(
+          RepaintBoundary(
+            key: _settlementChartKey,
+            child: Container(
+              color: const Color(0xFF151B2E),
+              child: SizedBox(
+                height: 260,
+                child: !hasData
+                    ? Center(
+                        child: Text('No curve data',
+                            style: TextStyle(
+                                color: Colors.grey.shade600, fontSize: 12)))
+                    : LineChart(
+                        LineChartData(
+                          gridData: FlGridData(
                             show: true,
-                            color: _colorForIndex(e.key).withOpacity(0.15),
+                            drawVerticalLine: false,
+                            horizontalInterval: maxSettle / 3,
+                            getDrawingHorizontalLine: (value) => FlLine(
+                              color: value == 0
+                                  ? Colors.white.withOpacity(0.6)
+                                  : Colors.grey.shade900,
+                              strokeWidth: value == 0 ? 1.5 : 1,
+                              dashArray: value == 0 ? [4, 4] : null,
+                            ),
                           ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
+                          titlesData: FlTitlesData(
+                            show: true,
+                            topTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false)),
+                            rightTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false)),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 24,
+                                interval: ((maxX - minX) / 4)
+                                    .clamp(0.5, 1000)
+                                    .toDouble(),
+                                getTitlesWidget: (v, _) => Text(
+                                  v.toStringAsFixed(0),
+                                  style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 9),
+                                ),
+                              ),
+                            ),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 44,
+                                interval: maxSettle / 3,
+                                getTitlesWidget: (v, _) => Text(
+                                  v.abs().toStringAsFixed(2),
+                                  style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 9),
+                                ),
+                              ),
+                            ),
+                          ),
+                          borderData: FlBorderData(show: false),
+                          minX: minX,
+                          maxX: maxX,
+                          minY: chartMinY,
+                          maxY: chartMaxY,
+                          lineBarsData: group.drops.asMap().entries.map((e) {
+                            return LineChartBarData(
+                              spots: _buildSettlementSpots(e.value),
+                              isCurved: true,
+                              curveSmoothness: 0.3,
+                              color: _colorForIndex(e.key),
+                              barWidth: 2.5,
+                              dotData: const FlDotData(show: false),
+                              belowBarData: BarAreaData(
+                                show: true,
+                                color:
+                                    _colorForIndex(e.key).withOpacity(0.15),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           Row(
@@ -429,7 +464,6 @@ class TestGroupDetailPage extends StatelessWidget {
       for (final v in d.velocityCurve) {
         if (v.abs() > maxVel) maxVel = v.abs();
       }
-      // Use settlement window for X-range
       final range = _getImpactRange(d.settlementCurve);
       final n = d.velocityCurve.length;
       final times = d.impactTimeCurve.isNotEmpty
@@ -463,82 +497,89 @@ class TestGroupDetailPage extends StatelessWidget {
                   letterSpacing: 1.5,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
-          SizedBox(
-            height: 220,
-            child: !hasData
-                ? Center(
-                    child: Text('No velocity curve data',
-                        style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 12)))
-                : LineChart(
-                    LineChartData(
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: maxVel / 4,
-                        getDrawingHorizontalLine: (value) => FlLine(
-                          color: value == 0
-                              ? Colors.white.withOpacity(0.6)
-                              : Colors.grey.shade900,
-                          strokeWidth: value == 0 ? 1.5 : 1,
-                          dashArray: value == 0 ? [4, 4] : null,
-                        ),
-                      ),
-                      titlesData: FlTitlesData(
-                        show: true,
-                        topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 24,
-                            interval:
-                                ((maxX - minX) / 4).clamp(0.5, 1000).toDouble(),
-                            getTitlesWidget: (v, _) => Text(
-                              v.toStringAsFixed(0),
-                              style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 9),
+          RepaintBoundary(
+            key: _velocityChartKey,
+            child: Container(
+              color: const Color(0xFF151B2E),
+              child: SizedBox(
+                height: 220,
+                child: !hasData
+                    ? Center(
+                        child: Text('No velocity curve data',
+                            style: TextStyle(
+                                color: Colors.grey.shade600, fontSize: 12)))
+                    : LineChart(
+                        LineChartData(
+                          gridData: FlGridData(
+                            show: true,
+                            drawVerticalLine: false,
+                            horizontalInterval: maxVel / 4,
+                            getDrawingHorizontalLine: (value) => FlLine(
+                              color: value == 0
+                                  ? Colors.white.withOpacity(0.6)
+                                  : Colors.grey.shade900,
+                              strokeWidth: value == 0 ? 1.5 : 1,
+                              dashArray: value == 0 ? [4, 4] : null,
                             ),
                           ),
-                        ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 44,
-                            interval: maxVel / 4,
-                            getTitlesWidget: (v, _) => Text(
-                              v.toStringAsFixed(2),
-                              style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 9),
+                          titlesData: FlTitlesData(
+                            show: true,
+                            topTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false)),
+                            rightTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false)),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 24,
+                                interval: ((maxX - minX) / 4)
+                                    .clamp(0.5, 1000)
+                                    .toDouble(),
+                                getTitlesWidget: (v, _) => Text(
+                                  v.toStringAsFixed(0),
+                                  style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 9),
+                                ),
+                              ),
+                            ),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 44,
+                                interval: maxVel / 4,
+                                getTitlesWidget: (v, _) => Text(
+                                  v.toStringAsFixed(2),
+                                  style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 9),
+                                ),
+                              ),
                             ),
                           ),
+                          borderData: FlBorderData(show: false),
+                          minX: minX,
+                          maxX: maxX,
+                          minY: -maxVel * 1.15,
+                          maxY: maxVel * 1.15,
+                          lineBarsData: group.drops
+                              .asMap()
+                              .entries
+                              .where((e) => e.value.velocityCurve.isNotEmpty)
+                              .map((e) {
+                            return LineChartBarData(
+                              spots: _buildVelocitySpots(e.value),
+                              isCurved: true,
+                              curveSmoothness: 0.25,
+                              color: _colorForIndex(e.key),
+                              barWidth: 2.5,
+                              dotData: const FlDotData(show: false),
+                            );
+                          }).toList(),
                         ),
                       ),
-                      borderData: FlBorderData(show: false),
-                      minX: minX,
-                      maxX: maxX,
-                      minY: -maxVel * 1.15,
-                      maxY: maxVel * 1.15,
-                      lineBarsData: group.drops
-                          .asMap()
-                          .entries
-                          .where((e) => e.value.velocityCurve.isNotEmpty)
-                          .map((e) {
-                        return LineChartBarData(
-                          spots: _buildVelocitySpots(e.value),
-                          isCurved: true,
-                          curveSmoothness: 0.25,
-                          color: _colorForIndex(e.key),
-                          barWidth: 2.5,
-                          dotData: const FlDotData(show: false),
-                        );
-                      }).toList(),
-                    ),
-                  ),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           Row(
