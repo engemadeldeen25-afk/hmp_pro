@@ -31,14 +31,13 @@ class TestGroupDetailPage extends StatelessWidget {
 
   Color _colorForIndex(int i) {
     const colors = [
-      Color(0xFF00E5FF),
-      Colors.orangeAccent,
-      Colors.greenAccent,
+      Color(0xFF00A8C5),
+      Color(0xFFFF8A00),
+      Color(0xFF3CC13C),
     ];
     return colors[i % colors.length];
   }
 
-  // Capture a RepaintBoundary widget to PNG bytes
   static Future<Uint8List?> _captureImage(GlobalKey key) async {
     try {
       final boundary =
@@ -56,21 +55,23 @@ class TestGroupDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E1A),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0E1A),
-        title: Text('Group - ${DateFormat('MMM d, HH:mm').format(group.time)}'),
+        backgroundColor: const Color(0xFFFFFFFF),
+        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
+        title: Text(
+          'Group - ${DateFormat('MMM d, HH:mm').format(group.time)}',
+          style: const TextStyle(
+              color: Color(0xFF1A1A2E), fontWeight: FontWeight.w600),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
             onPressed: () async {
               try {
-                // Wait for charts to render fully
                 await Future.delayed(const Duration(milliseconds: 100));
-
                 final settleImg = await _captureImage(_settlementChartKey);
                 final velocityImg = await _captureImage(_velocityChartKey);
-
                 final file = await ExportService.buildGroupPdfWithImages(
                   group,
                   siteName: siteName,
@@ -131,13 +132,14 @@ class TestGroupDetailPage extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: passed
-              ? [const Color(0xFF0F2A1A), const Color(0xFF153A22)]
-              : [const Color(0xFF2A0F0F), const Color(0xFF3A1515)],
+              ? [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)]
+              : [const Color(0xFFFFEBEE), const Color(0xFFFFCDD2)],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: passed ? Colors.greenAccent : Colors.redAccent,
-            width: 1.5),
+          color: passed ? Colors.green.shade400 : Colors.red.shade400,
+          width: 1.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,13 +147,13 @@ class TestGroupDetailPage extends StatelessWidget {
           Row(
             children: [
               Icon(passed ? Icons.verified : Icons.cancel,
-                  color: passed ? Colors.greenAccent : Colors.redAccent,
+                  color: passed ? Colors.green.shade700 : Colors.red.shade700,
                   size: 20),
               const SizedBox(width: 8),
               Text(
                 passed ? 'VALID TEST' : 'INVALID TEST',
                 style: TextStyle(
-                  color: passed ? Colors.greenAccent : Colors.redAccent,
+                  color: passed ? Colors.green.shade800 : Colors.red.shade800,
                   fontSize: 13,
                   letterSpacing: 1.5,
                   fontWeight: FontWeight.bold,
@@ -160,8 +162,7 @@ class TestGroupDetailPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          _infoRow(
-              'Date', DateFormat('yyyy-MM-dd HH:mm:ss').format(group.time)),
+          _infoRow('Date', DateFormat('yyyy-MM-dd HH:mm:ss').format(group.time)),
           _infoRow('Site', siteName),
           _infoRow('Job', jobName),
           _infoRow('Location', locationName),
@@ -169,8 +170,10 @@ class TestGroupDetailPage extends StatelessWidget {
               '${group.plateDiameterMm.toStringAsFixed(0)} mm'),
           _infoRow('Unit System', UnitsService.system),
           if (group.hasLocation)
-            _infoRow('GPS',
-                '${group.latitude.toStringAsFixed(6)}, ${group.longitude.toStringAsFixed(6)}'),
+            _infoRow(
+              'GPS',
+              '${group.latitude.toStringAsFixed(6)}, ${group.longitude.toStringAsFixed(6)}',
+            ),
         ],
       ),
     );
@@ -184,16 +187,21 @@ class TestGroupDetailPage extends StatelessWidget {
           SizedBox(
             width: 120,
             child: Text(label,
-                style:
-                    TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+                style: const TextStyle(
+                    color: Color(0xFF5A6478),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500)),
           ),
           Expanded(
-            child: Text(value,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.w600)),
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Color(0xFF1A1A2E),
+                fontSize: 12,
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -322,9 +330,16 @@ class TestGroupDetailPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF151B2E),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2A3654)),
+        border: Border.all(color: const Color(0xFFE0E4EC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,7 +347,7 @@ class TestGroupDetailPage extends StatelessWidget {
           Text(
               'SETTLEMENT vs IMPACT TIME (${UnitsService.deflectionUnit()})',
               style: const TextStyle(
-                  color: Colors.grey,
+                  color: Color(0xFF5A6478),
                   fontSize: 10,
                   letterSpacing: 1.5,
                   fontWeight: FontWeight.w600)),
@@ -340,14 +355,14 @@ class TestGroupDetailPage extends StatelessWidget {
           RepaintBoundary(
             key: _settlementChartKey,
             child: Container(
-              color: const Color(0xFF151B2E),
+              color: const Color(0xFFFFFFFF),
               child: SizedBox(
                 height: 260,
                 child: !hasData
-                    ? Center(
+                    ? const Center(
                         child: Text('No curve data',
                             style: TextStyle(
-                                color: Colors.grey.shade600, fontSize: 12)))
+                                color: Color(0xFF7A8498), fontSize: 12)))
                     : LineChart(
                         LineChartData(
                           gridData: FlGridData(
@@ -356,8 +371,8 @@ class TestGroupDetailPage extends StatelessWidget {
                             horizontalInterval: maxSettle / 3,
                             getDrawingHorizontalLine: (value) => FlLine(
                               color: value == 0
-                                  ? Colors.white.withOpacity(0.6)
-                                  : Colors.grey.shade900,
+                                  ? Colors.black.withOpacity(0.35)
+                                  : const Color(0xFFE0E4EC),
                               strokeWidth: value == 0 ? 1.5 : 1,
                               dashArray: value == 0 ? [4, 4] : null,
                             ),
@@ -377,9 +392,8 @@ class TestGroupDetailPage extends StatelessWidget {
                                     .toDouble(),
                                 getTitlesWidget: (v, _) => Text(
                                   v.toStringAsFixed(0),
-                                  style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 9),
+                                  style: const TextStyle(
+                                      color: Color(0xFF7A8498), fontSize: 9),
                                 ),
                               ),
                             ),
@@ -390,9 +404,8 @@ class TestGroupDetailPage extends StatelessWidget {
                                 interval: maxSettle / 3,
                                 getTitlesWidget: (v, _) => Text(
                                   v.abs().toStringAsFixed(2),
-                                  style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 9),
+                                  style: const TextStyle(
+                                      color: Color(0xFF7A8498), fontSize: 9),
                                 ),
                               ),
                             ),
@@ -412,8 +425,7 @@ class TestGroupDetailPage extends StatelessWidget {
                               dotData: const FlDotData(show: false),
                               belowBarData: BarAreaData(
                                 show: true,
-                                color:
-                                    _colorForIndex(e.key).withOpacity(0.15),
+                                color: _colorForIndex(e.key).withOpacity(0.15),
                               ),
                             );
                           }).toList(),
@@ -435,7 +447,7 @@ class TestGroupDetailPage extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text('Drop ${i + 1}',
                         style: const TextStyle(
-                            color: Colors.white70, fontSize: 10)),
+                            color: Color(0xFF5A6478), fontSize: 10)),
                   ],
                 ),
               );
@@ -444,8 +456,8 @@ class TestGroupDetailPage extends StatelessWidget {
           Center(
             child: Text(
                 'Impact time (ms)  /  ${UnitsService.deflectionUnit()}',
-                style:
-                    TextStyle(color: Colors.grey.shade600, fontSize: 9)),
+                style: const TextStyle(
+                    color: Color(0xFF7A8498), fontSize: 9)),
           ),
         ],
       ),
@@ -482,9 +494,16 @@ class TestGroupDetailPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF151B2E),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2A3654)),
+        border: Border.all(color: const Color(0xFFE0E4EC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,7 +511,7 @@ class TestGroupDetailPage extends StatelessWidget {
           Text(
               'VELOCITY vs IMPACT TIME (${UnitsService.velocityUnit()})',
               style: const TextStyle(
-                  color: Colors.grey,
+                  color: Color(0xFF5A6478),
                   fontSize: 10,
                   letterSpacing: 1.5,
                   fontWeight: FontWeight.w600)),
@@ -500,14 +519,14 @@ class TestGroupDetailPage extends StatelessWidget {
           RepaintBoundary(
             key: _velocityChartKey,
             child: Container(
-              color: const Color(0xFF151B2E),
+              color: const Color(0xFFFFFFFF),
               child: SizedBox(
                 height: 220,
                 child: !hasData
-                    ? Center(
+                    ? const Center(
                         child: Text('No velocity curve data',
                             style: TextStyle(
-                                color: Colors.grey.shade600, fontSize: 12)))
+                                color: Color(0xFF7A8498), fontSize: 12)))
                     : LineChart(
                         LineChartData(
                           gridData: FlGridData(
@@ -516,8 +535,8 @@ class TestGroupDetailPage extends StatelessWidget {
                             horizontalInterval: maxVel / 4,
                             getDrawingHorizontalLine: (value) => FlLine(
                               color: value == 0
-                                  ? Colors.white.withOpacity(0.6)
-                                  : Colors.grey.shade900,
+                                  ? Colors.black.withOpacity(0.35)
+                                  : const Color(0xFFE0E4EC),
                               strokeWidth: value == 0 ? 1.5 : 1,
                               dashArray: value == 0 ? [4, 4] : null,
                             ),
@@ -537,9 +556,8 @@ class TestGroupDetailPage extends StatelessWidget {
                                     .toDouble(),
                                 getTitlesWidget: (v, _) => Text(
                                   v.toStringAsFixed(0),
-                                  style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 9),
+                                  style: const TextStyle(
+                                      color: Color(0xFF7A8498), fontSize: 9),
                                 ),
                               ),
                             ),
@@ -550,9 +568,8 @@ class TestGroupDetailPage extends StatelessWidget {
                                 interval: maxVel / 4,
                                 getTitlesWidget: (v, _) => Text(
                                   v.toStringAsFixed(2),
-                                  style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 9),
+                                  style: const TextStyle(
+                                      color: Color(0xFF7A8498), fontSize: 9),
                                 ),
                               ),
                             ),
@@ -594,7 +611,7 @@ class TestGroupDetailPage extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text('Drop ${i + 1}',
                         style: const TextStyle(
-                            color: Colors.white70, fontSize: 10)),
+                            color: Color(0xFF5A6478), fontSize: 10)),
                   ],
                 ),
               );
@@ -603,8 +620,8 @@ class TestGroupDetailPage extends StatelessWidget {
           Center(
             child: Text(
                 'Impact time (ms)  /  ${UnitsService.velocityUnit()}',
-                style:
-                    TextStyle(color: Colors.grey.shade600, fontSize: 9)),
+                style: const TextStyle(
+                    color: Color(0xFF7A8498), fontSize: 9)),
           ),
         ],
       ),
@@ -615,16 +632,23 @@ class TestGroupDetailPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF151B2E),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2A3654)),
+        border: Border.all(color: const Color(0xFFE0E4EC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('TEST DATA',
               style: TextStyle(
-                  color: Colors.grey,
+                  color: Color(0xFF5A6478),
                   fontSize: 10,
                   letterSpacing: 1.5,
                   fontWeight: FontWeight.w600)),
@@ -633,7 +657,7 @@ class TestGroupDetailPage extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Table(
               border: TableBorder.all(
-                  color: const Color(0xFF2A3654), width: 1),
+                  color: const Color(0xFFE0E4EC), width: 1),
               columnWidths: const {
                 0: FixedColumnWidth(70),
                 1: FixedColumnWidth(95),
@@ -678,18 +702,12 @@ class TestGroupDetailPage extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: passed
-              ? [
-                  Colors.green.shade900.withOpacity(0.4),
-                  Colors.green.shade900.withOpacity(0.1),
-                ]
-              : [
-                  Colors.red.shade900.withOpacity(0.4),
-                  Colors.red.shade900.withOpacity(0.1),
-                ],
+              ? [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)]
+              : [const Color(0xFFFFEBEE), const Color(0xFFFFCDD2)],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: passed ? Colors.greenAccent : Colors.redAccent),
+            color: passed ? Colors.green.shade400 : Colors.red.shade400),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -697,13 +715,16 @@ class TestGroupDetailPage extends StatelessWidget {
           Row(
             children: [
               Icon(passed ? Icons.analytics : Icons.warning,
-                  color: passed ? Colors.greenAccent : Colors.redAccent,
+                  color: passed
+                      ? Colors.green.shade700
+                      : Colors.red.shade700,
                   size: 16),
               const SizedBox(width: 8),
               Text(passed ? 'VALID TEST' : 'INVALID TEST',
                   style: TextStyle(
-                      color:
-                          passed ? Colors.greenAccent : Colors.redAccent,
+                      color: passed
+                          ? Colors.green.shade800
+                          : Colors.red.shade800,
                       fontSize: 11,
                       letterSpacing: 1.5,
                       fontWeight: FontWeight.bold)),
@@ -736,12 +757,12 @@ class TestGroupDetailPage extends StatelessWidget {
         children: [
           Expanded(
             child: Text(label,
-                style:
-                    const TextStyle(color: Colors.white70, fontSize: 12)),
+                style: const TextStyle(
+                    color: Color(0xFF5A6478), fontSize: 12)),
           ),
           Text(value,
               style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFF1A1A2E),
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'monospace')),
@@ -752,13 +773,13 @@ class TestGroupDetailPage extends StatelessWidget {
 
   TableRow _tableHeader(List<String> cells) {
     return TableRow(
-      decoration: const BoxDecoration(color: Color(0xFF0F1729)),
+      decoration: const BoxDecoration(color: Color(0xFF0097A7)),
       children: cells
           .map((c) => Padding(
                 padding: const EdgeInsets.all(8),
                 child: Text(c,
                     style: const TextStyle(
-                        color: Color(0xFF00E5FF),
+                        color: Colors.white,
                         fontSize: 10,
                         fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center),
@@ -774,7 +795,7 @@ class TestGroupDetailPage extends StatelessWidget {
                 padding: const EdgeInsets.all(8),
                 child: Text(c,
                     style: const TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFF1A1A2E),
                         fontSize: 11,
                         fontFamily: 'monospace'),
                     textAlign: TextAlign.center),

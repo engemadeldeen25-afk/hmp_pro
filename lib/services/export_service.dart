@@ -164,7 +164,6 @@ class ExportService {
     rows.add([]);
     rows.add([]);
 
-    // Settlement curve data
     rows.add(['SETTLEMENT vs IMPACT TIME (${UnitsService.deflectionUnit()})']);
     final settleHeader = <dynamic>['Impact Time (ms)'];
     for (int i = 0; i < group.drops.length; i++) {
@@ -213,7 +212,6 @@ class ExportService {
     rows.add([]);
     rows.add([]);
 
-    // Velocity curve data
     rows.add(['VELOCITY vs IMPACT TIME (${UnitsService.velocityUnit()})']);
     final velHeader = <dynamic>['Impact Time (ms)'];
     for (int i = 0; i < group.drops.length; i++) {
@@ -315,6 +313,7 @@ class ExportService {
 
   // ============================================================
   //  PDF - GROUP REPORT WITH EMBEDDED CHART IMAGES
+  //  (images are captured by the app, passed here)
   // ============================================================
   static Future<File> buildGroupPdfWithImages(
     TestGroup group, {
@@ -344,7 +343,7 @@ class ExportService {
         build: (context) {
           final w = <pw.Widget>[];
 
-          // Header
+          // ---- HEADER ----
           w.add(pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
@@ -390,7 +389,7 @@ class ExportService {
           w.add(pw.Divider(color: PdfColors.grey400));
           w.add(pw.SizedBox(height: 8));
 
-          // Info
+          // ---- INFO CARD ----
           w.add(pw.Container(
             padding: const pw.EdgeInsets.all(10),
             decoration: pw.BoxDecoration(
@@ -416,7 +415,7 @@ class ExportService {
           ));
           w.add(pw.SizedBox(height: 12));
 
-          // Badge
+          // ---- PASS/FAIL BADGE ----
           w.add(pw.Container(
             padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: pw.BoxDecoration(
@@ -442,7 +441,7 @@ class ExportService {
           ));
           w.add(pw.SizedBox(height: 14));
 
-          // Test data
+          // ---- TEST DATA TABLE ----
           w.add(_sectionTitle('TEST DATA'));
           w.add(pw.SizedBox(height: 6));
           w.add(_styledTable(
@@ -467,7 +466,7 @@ class ExportService {
           ));
           w.add(pw.SizedBox(height: 16));
 
-          // Settlement chart
+          // ---- SETTLEMENT CHART IMAGE ----
           if (settlementChartImage != null) {
             w.add(_sectionTitle(
                 'SETTLEMENT vs IMPACT TIME (${UnitsService.deflectionUnit()})'));
@@ -482,7 +481,7 @@ class ExportService {
             w.add(pw.SizedBox(height: 14));
           }
 
-          // Velocity chart
+          // ---- VELOCITY CHART IMAGE ----
           if (velocityChartImage != null) {
             w.add(_sectionTitle(
                 'VELOCITY vs IMPACT TIME (${UnitsService.velocityUnit()})'));
@@ -497,7 +496,7 @@ class ExportService {
             w.add(pw.SizedBox(height: 14));
           }
 
-          // Averages
+          // ---- AVERAGES ----
           w.add(_sectionTitle('GROUP AVERAGES'));
           w.add(pw.SizedBox(height: 6));
           w.add(_styledTable(

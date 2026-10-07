@@ -9,20 +9,44 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # Bluetooth
   flutter_blue_plus: ^1.35.5
+
+  # Charts
   fl_chart: ^0.68.0
+
+  # CSV & Reports
   csv: ^5.1.1
+  pdf: ^3.11.1
+
+  # Formatting
   intl: ^0.19.0
+
+  # Storage
   shared_preferences: ^2.3.2
   path_provider: ^2.1.4
+
+  # Permissions & Location
   permission_handler: ^11.3.1
   geolocator: ^12.0.0
+
+  # Sharing
   share_plus: ^10.0.2
-  pdf: ^3.11.1
+
+  # Networking
   http: ^1.2.2
+
+  # Device Info
   battery_plus: ^6.0.1
+
+  # Camera / Images
   image_picker: ^1.1.2
+
+  # Text-to-speech
   flutter_tts: ^4.0.2
+
+  # Keep screen awake
   wakelock_plus: ^1.2.8
 
 dev_dependencies:
@@ -33,6 +57,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
   assets:
     - assets/icon/
 
@@ -40,5 +65,5 @@ flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/logo_v3.png"
-  adaptive_icon_background: "#0A0E1A"
+  adaptive_icon_background: "#F5F7FA"
   adaptive_icon_foreground: "assets/icon/logo_v3.png"
