@@ -35,26 +35,38 @@ class HmpProApp extends StatelessWidget {
     return MaterialApp(
       title: 'HMP PRO',
       debugShowCheckedModeBanner: false,
-           theme: ThemeData(
+            theme: ThemeData(
   useMaterial3: true,
   brightness: Brightness.light,
   colorScheme: const ColorScheme.light(
-    primary: Color(0xFF0097A7),
-    secondary: Color(0xFF0288D1),
-    surface: Color(0xFFFFFFFF),
-    onSurface: Color(0xFF1A1A2E),
+    primary: Color(0xFF0097A7),      // Teal - for buttons, active icons
+    onPrimary: Colors.white,
+    secondary: Color(0xFF0288D1),    // Blue - for secondary actions
+    onSecondary: Colors.white,
+    surface: Color(0xFFFFFFFF),      // Pure White - for cards, app bar
+    onSurface: Color(0xFF1A1A2E),    // Near-Black - for main text/icons
+    error: Color(0xFFC62828),        // Deep Red - for errors
+    onError: Colors.white,
   ),
+  // Soft off-white background for maximum sunlight readability
   scaffoldBackgroundColor: const Color(0xFFF5F7FA),
   appBarTheme: const AppBarTheme(
     backgroundColor: Color(0xFFFFFFFF),
     foregroundColor: Color(0xFF1A1A2E),
     elevation: 0,
     iconTheme: IconThemeData(color: Color(0xFF1A1A2E), size: 28),
+    titleTextStyle: TextStyle(
+      color: Color(0xFF1A1A2E),
+      fontSize: 18,
+      fontWeight: FontWeight.w700,
+    ),
   ),
+  // Global Icon Theme
   iconTheme: const IconThemeData(
     color: Color(0xFF1A1A2E),
     size: 28,
   ),
+  // Global Card Theme
   cardTheme: CardThemeData(
     color: const Color(0xFFFFFFFF),
     elevation: 2,
@@ -62,6 +74,33 @@ class HmpProApp extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       side: const BorderSide(color: Color(0xFFE0E4EC), width: 1),
     ),
+  ),
+  // Global Text Theme
+  textTheme: const TextTheme(
+    bodyLarge: TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.w500),
+    bodyMedium: TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.w500),
+    titleLarge: TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.w700),
+  ),
+  // Global Button Theme
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFF0097A7),
+      foregroundColor: Colors.white,
+      elevation: 1,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+    ),
+  ),
+  // Global SnackBar Theme
+  snackBarTheme: const SnackBarThemeData(
+    backgroundColor: Color(0xFF0097A7),
+    contentTextStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+  ),
+  // Global Divider Theme
+  dividerTheme: const DividerThemeData(
+    color: Color(0xFFE0E4EC),
+    thickness: 1,
   ),
 ),
       home: const SplashScreen(child: HomePage()),
